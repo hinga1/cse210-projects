@@ -4,135 +4,152 @@ using System.IO;
 
 class Program
 {
-    static List<Scripture> scriptures = new List<Scripture>();
-
     static void Main()
     {
-        LoadScripturesFromFile("scriptures.txt");
+        // Create a list of scriptures
+        List<Scripture> scriptures = LoadScripturesFromFile("scriptures.txt");
+
+        // Check if scriptures were loaded successfully
+        if (scriptures.Count == 0)
+        {
+            Console.WriteLine("No scriptures found.");
+            return;
+        }
+
+        // Select a random scripture
+        Random random = new Random();
+        Scripture selectedScripture = scriptures[random.Next(scriptures.Count)];
+
+        // Display the complete scripture
+        selectedScripture.Display();
+
+        // Prompt the user to press enter or quit
+        Console.WriteLine("Press enter to hide words or type 'quit' to exit.");
 
         while (true)
         {
-            Scripture scripture = GetRandomScripture();
-            Console.WriteLine("Reference: " + scripture.GetReference());
-            Console.WriteLine("Press Enter to hide words or type 'quit' to exit.");
+            string userInput = Console.ReadLine();
 
-            if (Console.ReadLine().ToLower() == "quit")
+            if (userInput.ToLower() == "quit")
                 break;
 
-            HideRandomWords(scripture);
-            Console.Clear();
-            Console.WriteLine("Reference: " + scripture.GetReference());
-            Console.WriteLine("Text: " + scripture.GetText());
-        }
+            // Hide random words in the scripture
+            selectedScripture.HideRandomWords();
 
-        Console.WriteLine("Program ended.");
+            // Clear the console screen
+            Console.Clear();
+
+            // Display the modified scripture
+            selectedScripture.Display();
+
+            // Check if all words are hidden
+            if (selectedScripture.AreAllWordsHidden())
+                break;
+
+            // Prompt the user to press enter or quit again
+            Console.WriteLine("Press enter to hide more words or type 'quit' to exit.");
+        }
     }
 
-    static void LoadScripturesFromFile(string filePath)
+    // Load scriptures from a file and return a list of scripture objects
+    static List<Scripture> LoadScripturesFromFile(string fileName)
     {
+        List<Scripture> scriptures = new List<Scripture>();
+
         try
         {
-            string[] lines = File.ReadAllLines(filePath);
+            string[] lines = File.ReadAllLines(fileName);
 
             foreach (string line in lines)
             {
-                string[] parts = line.Split(':');
-                string reference = parts[0].Trim();
-                string text = parts[1].Trim();
-                scriptures.Add(new Scripture(reference, text));
-            }
-
-            Console.WriteLine("Scriptures loaded: " + scriptures.Count);
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine("Error loading scriptures: " + e.Message);
-        }
-    }
-
-    static Scripture GetRandomScripture()
-    {
-        Random random = new Random();
-        int index = random.Next(scriptures.Count);
-        return scriptures[index];
-    }
-
-    static void HideRandomWords(Scripture scripture)
-    {
-        Random random = new Random();
-        string[] words = scripture.GetText().Split(' ');
-
-        foreach (string word in words)
-        {
-            if (random.Next(2) == 0) // Randomly decide to hide a word
-            {
-                int wordIndex = scripture.GetText().IndexOf(word);
-                scripture.HideWord(wordIndex, word.Length);
+                string[] parts = line.Split('|');
+                if (parts.Length == 2)
+                {
+                    string reference = parts[0].Trim();
+                    string text = parts[1].Trim();
+                    Scripture scripture = new Scripture(reference, text);
+                    scriptures.Add(scripture);
+                }
             }
         }
+        catch (IOException e)
+        {
+            Console.WriteLine("Error reading the file: " + e.Message);
+        }
+
+        return scriptures;
     }
 }
 
 class Scripture
 {
     private string reference;
-    private string text;
     private List<Word> words;
 
     public Scripture(string reference, string text)
     {
         this.reference = reference;
-        this.text = text;
         words = new List<Word>();
 
-        foreach (string word in text.Split(' '))
+        string[] wordArray = text.Split(' ');
+
+        foreach (string word in wordArray)
         {
             words.Add(new Word(word));
         }
     }
 
-    public string GetReference()
+    public void Display()
     {
-        return reference;
-    }
+        Console.WriteLine(reference);
 
-    public string GetText()
-    {
-        string result = "";
         foreach (Word word in words)
         {
-            result += word.GetVisibleWord() + " ";
+            if (word.IsHidden)
+                Console.Write("____ ");
+            else
+                Console.Write(word.Text + " ");
         }
-        return result.Trim();
+
+        Console.WriteLine();
     }
 
-    public void HideWord(int startIndex, int length)
+    public void HideRandomWords()
     {
-        for (int i = startIndex; i < startIndex + length; i++)
+        Random random = new Random();
+
+        foreach (Word word in words)
         {
-            words[i].Hide();
+            if (!word.IsHidden && random.Next(2) == 0)
+                word.Hide();
         }
+    }
+
+    public bool AreAllWordsHidden()
+    {
+        foreach (Word word in words)
+        {
+            if (!word.IsHidden)
+                return false;
+        }
+
+        return true;
     }
 }
 
 class Word
 {
-    private string word;
-    private bool visible;
+    public string Text { get; }
+    public bool IsHidden { get; private set; }
 
-    public Word(string word)
+    public Word(string text)
     {
-        this.word = word;
-        visible = true;
-    }
-
-    public string GetVisibleWord()
-    {
-        return visible ? word : new string('_', word.Length);
+        Text = text;
+        IsHidden = false;
     }
 
     public void Hide()
     {
-        visible = false;
+        IsHidden = true;
     }
 }
